@@ -19,7 +19,7 @@
 **
 */
 
-#define	RGBPCversion	"V1.03g"
+#define	RGBPCversion	"V1.03h"
 
 // LDR   -> "A5"  => A7
 // DHT22 -> "WKP" => A6
@@ -118,6 +118,10 @@ uint8_t minute_last = 0;
 uint8_t second_last = 0;
 bool has_shown = 0;
 
+
+// Spark Variables
+int tZone = 0;
+
 // #define SENSOR_DHT
 
 #define DHT_PIN A6
@@ -130,6 +134,7 @@ bool has_shown = 0;
 
 /************ PROTOTYPES **************/
 int setMode(String command);
+int setTimeZone(String command);
 void cls();
 void vectorNumber(int n, int x, int y, int color, float scale_x, float scale_y);
 void drawString(int x, int y, char* c,uint8_t font_size, uint16_t color);
@@ -141,6 +146,7 @@ void bgProcess();
 void update_last();
 /*************************************/
 
+#define EEPROM_TIMEZONE_ADDRESS 0
 // + means it works, - means it doesn't work ... yet!
 // #define FACE_WEATHER
 // #define FACE_PACMAN		+
@@ -251,6 +257,10 @@ void setup() {
 #endif
 
 	Particle.function("setMode", setMode);		// Receive mode commands
+
+	Particle.function("setTimeZone", setTimeZone);
+	Spark.variable("tZone", &tZone, INT);
+
 #ifdef FACE_WEATHER
 	weather_setup();
 #endif
@@ -264,8 +274,12 @@ void setup() {
 	} while (resetTime < 1000000 && millis() < 20000); // wait for a reasonable epoc time, but not longer than 20 seconds
 
 
-	// Needs to be set via Particle.function and store in EEPROM!!
-	Time.zone(-4);
+	EEPROM.get(EEPROM_TIMEZONE_ADDRESS, tZone);
+
+	if((tZone > 13) || (tZone < -13))
+		tZone = 0;
+
+	Time.zone(tZone);
 
 #ifdef FACE_FFT
 	memset(peak, 0, sizeof(peak));
@@ -393,6 +407,27 @@ void loop() {
 	//bgProcess();
 }
 
+
+int setTimeZone(String command) {
+
+	int tZoneTest = command.toInt();
+	
+
+	if((tZoneTest > 13) || (tZoneTest < -13))
+	{
+		Spark.publish("Invalid timezone");
+	}
+	else
+	{
+		tZone = tZoneTest;
+		EEPROM.put(EEPROM_TIMEZONE_ADDRESS, tZone);
+		Time.zone(tZone);
+		Spark.publish("Timezone set!");
+	}
+
+	
+
+}
 
 int setMode(String command) {
 	mode_changed = 0;
